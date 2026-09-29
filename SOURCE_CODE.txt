@@ -1,0 +1,240 @@
+===== storage.py =====
+FILENAME = "student_data.txt"
+
+
+def infooload():
+    details = []
+    try:
+        with open(FILENAME, "r") as file:
+            for line in file:
+                line = line.strip()
+                if not line:
+                    continue
+                criteria = line.split(",")
+                if len(criteria) >= 7:
+                    detail = {
+                        "id": int(criteria[0]),
+                        "NAME": criteria[1],
+                        "standard": criteria[2],
+                        "subject": criteria[3],
+                        "result": criteria[4],
+                        "nature": criteria[5],
+                        "studyhour": int(criteria[6]),
+                        "exams": []
+                    }
+
+                    if len(criteria) > 7 and criteria[7]:
+                        exam_entries = criteria[7].split("|")
+                        for entry in exam_entries:
+                            parts = entry.split(";")
+                            if len(parts) == 4:
+                                detail["exams"].append({
+                                    "examname": parts[0],
+                                    "date": parts[1],
+                                    "exampattern": parts[2],
+                                    "examtime": parts[3]
+                                })
+
+                    details.append(detail)
+    except FileNotFoundError:
+        pass
+    return details
+
+
+def savesinfo(details):
+    """Writes details and exams to student_data.txt."""
+    with open(FILENAME, "w") as file:
+        for detail in details:
+            exams_str = ""
+            if "exams" in detail and detail["exams"]:
+                exam_list = []
+                for ex in detail["exams"]:
+                    exam_list.append(
+                        f"{ex['examname']};{ex['date']};"
+                        f"{ex['exampattern']};{ex['examtime']}"
+                    )
+                exams_str = "|".join(exam_list)
+
+            line = (
+                f"{detail['id']},{detail['NAME']},{detail['standard']},"
+                f"{detail['subject']},{detail['result']},{detail['nature']},"
+                f"{detail['studyhour']},{exams_str}\n"
+            )
+            file.write(line)
+
+
+===== state.py =====
+from storage import infooload
+
+# Load existing data at startup.
+details = infooload()
+
+
+===== students.py =====
+from storage import savesinfo
+from state import details
+
+
+def f1():  # Add details
+    print("\n--- Add Student Details ---")
+    try:
+        student_id = int(input("Enter Your id: "))
+    except ValueError:
+        print("Please enter a valid numeric ID.")
+        return
+
+    for detail in details:
+        if detail["id"] == student_id:
+            print(f"Error: A student with ID {student_id} already exists.")
+            return
+
+    name = input("Enter Your Name: ")
+    standard = input("Enter the class: ")
+    sub = input("Enter the subjects: ")
+    result = input("Enter your result: ")
+    nature = input("Enter your study pattern (night/morning): ")
+
+    detail = {
+        "id": student_id,
+        "NAME": name,
+        "standard": standard,
+        "subject": sub,
+        "result": result,
+        "nature": nature,
+        "studyhour": 0,
+        "exams": []
+    }
+
+    details.append(detail)
+    savesinfo(details)
+    print(f"ID {student_id} saved to file!")
+
+
+===== study.py =====
+from storage import savesinfo
+from state import details
+
+
+def f2():  # study hours
+    try:
+        stdhour = int(input("Enter your today study hour: "))
+        x = int(input("Enter your id: "))
+    except ValueError:
+        print("Please enter valid numeric values.")
+        return
+
+    for detail in details:
+        if detail["id"] == x:
+            detail["studyhour"] = stdhour
+            savesinfo(details)
+            print(f"Your today study hour is {stdhour}.")
+            return
+    print("ID NOT FOUND")
+
+
+def f3():  # exam paper strategy
+    for detail in details:
+        if detail["nature"].lower() == "night":
+            print(
+                "1. An effective night learner strategy focuses on optimizing your environment\n"
+                "2. Managing energy levels\n"
+                "3. Applying active recall techniques to stay alert and retain information after dark"
+            )
+        else:
+            print(
+                "1. An effective morning routine for learners focuses on waking up the brain\n"
+                "2. Protecting focus\n"
+                "3. Building steady energy for studying"
+            )
+
+
+def f4():  # study hour management
+    print("\n--- Daily Time Planner ---")
+    try:
+        hours = float(input("Total study hour today: "))
+        if hours < 12:
+            raw_subjects = input("Enter subjects to study today (comma separated): ")
+            subjects = [s.strip() for s in raw_subjects.split(",") if s.strip()]
+            if subjects:
+                per_subject = hours / len(subjects)
+                print(f"\nSuggested Allocation ({per_subject:.2f} hours per subject):")
+                for sub in subjects:
+                    print(f"- {sub}: {per_subject:.2f} hours")
+        else:
+            print("Invalid input: Study hours must be less than 12.")
+            return
+    except ValueError:
+        print("Invalid input")
+
+
+===== exams.py =====
+from storage import savesinfo
+from state import details
+
+
+def f5():  # schedule exam
+    try:
+        x = int(input("Enter student id: "))
+    except ValueError:
+        print("Please enter a valid numeric ID.")
+        return
+
+    for detail in details:
+        if detail["id"] == x:
+            if "exams" not in detail:
+                detail["exams"] = []
+
+            exname = input("Enter Exam Name: ")
+            exdate = input("Enter Exam Date (YYYY-MM-DD): ")
+            expattern = input(
+                "Enter total no of ques and marks pattern (ques/marks): "
+            )
+            time = input("Enter time for exam: ")
+
+            detail["exams"].append({
+                "examname": exname,
+                "date": exdate,
+                "exampattern": expattern,
+                "examtime": time
+            })
+
+            savesinfo(details)
+            print(f"Exam '{exname}' scheduled and saved to file!")
+            return
+    print("ID NOT FOUND")
+
+
+===== main.py =====
+from students import f1
+from study import f2, f3, f4
+from exams import f5
+
+
+print("____STUDY MANAGEMENT SYSTEM___")
+
+choice = " "
+while choice != "6":
+    print("\n1. Add details")
+    print("2. Add study hours")
+    print("3. View exam prep strategy")
+    print("4. Time dividing")
+    print("5. Schedule exam")
+    print("6. EXIT")
+
+    choice = input("Enter choice: ").strip()
+
+    if choice == "1":
+        f1()
+    elif choice == "2":
+        f2()
+    elif choice == "3":
+        f3()
+    elif choice == "4":
+        f4()
+    elif choice == "5":
+        f5()
+    elif choice == "6":
+        print("Exiting application...")
+        break
+    else:
+        print("Invalid choice")
